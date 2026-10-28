@@ -17,6 +17,8 @@ class InventoryMovement extends Model
         'product_id',
         'movement_type',
         'quantity_delta',
+        'quantity_before',
+        'quantity_after',
         'reference_type',
         'reference_id',
         'reason',
@@ -26,6 +28,8 @@ class InventoryMovement extends Model
 
     protected $casts = [
         'quantity_delta' => 'integer',
+        'quantity_before' => 'integer',
+        'quantity_after' => 'integer',
         'reference_id' => 'integer',
         'created_at' => 'datetime',
     ];

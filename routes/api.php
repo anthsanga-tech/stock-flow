@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\InventoryMovementController;
+use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderItemController;
 use App\Http\Controllers\Api\OrderStatusHistoryController;
@@ -25,6 +26,11 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class])->group(function (
     Route::middleware('permission:products.view')->group(function () {
         Route::apiResource('products', ProductController::class)->only(['index', 'show']);
         Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
+        Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::get('inventory/low-stock', [InventoryController::class, 'lowStock'])->name('inventory.low-stock');
+        Route::get('inventory-movements', [InventoryMovementController::class, 'index'])->name('inventory-movements.index');
+        Route::get('stock-balances', [StockBalanceController::class, 'index'])->name('stock-balances.index');
+        Route::get('stock-balances/{id}', [StockBalanceController::class, 'show'])->name('stock-balances.show');
     });
     Route::middleware('permission:products.manage')->group(function () {
         Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
@@ -37,10 +43,9 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class])->group(function (
     Route::apiResource('permissions', PermissionController::class);
     Route::apiResource('suppliers', SupplierController::class);
     Route::apiResource('customers', CustomerController::class);
-    Route::apiResource('inventory-movements', InventoryMovementController::class)
-        ->only(['index', 'store', 'show']);
-    Route::apiResource('stock-balances', StockBalanceController::class)
-        ->only(['index', 'show']);
+    Route::post('inventory-movements', [InventoryMovementController::class, 'store'])
+        ->middleware('permission:products.manage')
+        ->name('inventory-movements.store');
     Route::apiResource('purchase-receipts', PurchaseReceiptController::class);
     Route::apiResource('purchase-receipt-items', PurchaseReceiptItemController::class);
     Route::apiResource('orders', OrderController::class);

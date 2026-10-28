@@ -1,52 +1,81 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# StockFlow
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+StockFlow is a small-business inventory and order-management application. This repository currently contains the Phase 1 UI foundation and product-management workflow, plus the Phase 2 inventory workflow. It uses Laravel 11 for the JSON API and server-rendered SPA entry point, with React, TypeScript, Vite, and TanStack Query for the client.
 
-## About Laravel
+## Current capabilities
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### Phase 1: UI foundation and product management
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Light-theme design tokens for indigo actions, slate navigation and text, white surfaces, semantic status colors, and responsive breakpoints.
+- Responsive application shell with collapsible desktop navigation, a mobile navigation drawer, user menu, and logout action.
+- Sanctum session-based login, current-user lookup, active-account checks, permission-aware route guards, and session retry/error states.
+- Product catalog with search by name or SKU, category and active/archive filters, sorting, pagination, stock-on-hand display, and archive confirmation.
+- Product creation and editing with client-side and server-side field validation.
+- Reusable buttons, inputs, select controls, cards, form fields, status badges, pagination, confirmation dialog, loading/empty/error states.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Phase 2: Inventory management
 
-## StockFlow API
+- Active-product inventory overview with current quantity, reorder level, category, stock status, summary counts, search, filters, sorting, pagination, and links to movement history.
+- Stock receipt, issue, and manual-adjustment workflow with current-balance preview, resulting-balance estimate, reason field, server validation, and duplicate-submit protection.
+- Newest-first, paginated movement history with filters for product, movement type, actor, and date range.
+- Atomic stock balance updates and append-only movement records with before/after quantity snapshots, actor, reason, optional supported reference, and timestamp.
+- Per-product low-stock calculation; archived products are excluded from active inventory and alerts.
 
-The React SPA uses Laravel Sanctum's first-party, session-cookie authentication. It does not issue bearer tokens or use JWT. Login/logout are `POST /login` and `POST /logout`; `GET /api/user` returns the authenticated user's safe profile, role, and permission slugs. Product and category endpoints require the corresponding `products.view` or `products.manage` permission in addition to an active authenticated session.
+Products and Inventory are the currently implemented application areas. Suppliers, purchase receiving UI, customers, orders, reports, and settings are not complete user-facing features in these phases, even though related backend models or API resources may exist.
 
-### Local development
+## Technology
 
-1. Install PHP and JavaScript dependencies:
+- PHP 8.2+
+- Laravel 11 and Sanctum 4
+- React 19, TypeScript, Vite 6, React Router 7, TanStack Query 5
+- MySQL for a typical Laragon deployment; the example environment defaults to SQLite
+- PHPUnit for backend tests; Vitest and Testing Library for frontend tests
+
+No additional package installation is required beyond the dependencies in `composer.lock` and `package-lock.json`.
+
+## Local development on Windows / Laragon
+
+1. Install PHP and Node.js, then install project dependencies from the repository root:
 
    ```powershell
    composer install
    npm install
    ```
 
-2. Configure `.env` for the local database and app URL. The committed `.env.example` defaults to SQLite; for MySQL, set `DB_CONNECTION=mysql`, host, database, username, and password to your local values. Set `APP_URL`, `FRONTEND_URL`, `CORS_ALLOWED_ORIGINS`, and `SANCTUM_STATEFUL_DOMAINS` for the URLs you will actually use.
-
-   For the default Vite setup, use `localhost` for both the Laravel and Vite hosts (ports may differ). Do not mix `localhost` and `127.0.0.1`: session cookies are host-only. If you change hosts or ports, include the frontend origin in `CORS_ALLOWED_ORIGINS` and the frontend host and port in `SANCTUM_STATEFUL_DOMAINS`.
-
-3. Create an application key if this is a new local install:
+2. Create the local environment file if it does not exist and generate an application key:
 
    ```powershell
+   Copy-Item .env.example .env
    php artisan key:generate
    ```
 
-4. Review pending migrations and back up any database with existing data before applying them. Then run `php artisan migrate`; do not use `migrate:fresh` on a database containing data you need.
+   Configure `.env` for the database connection and URLs you intend to use. `.env.example` uses SQLite by default. For MySQL, set `DB_CONNECTION=mysql` and configure `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` for your Laragon database.
 
-5. Start Laravel and Vite in separate terminals:
+3. Configure the Laravel and Vite hosts consistently. The defaults use Laravel at `http://localhost:8000` and Vite at `http://localhost:5173`. Sanctum session cookies are host-specific: avoid mixing `localhost` and `127.0.0.1`. If you change the development host or port, update `APP_URL`, `FRONTEND_URL`, `CORS_ALLOWED_ORIGINS`, and `SANCTUM_STATEFUL_DOMAINS` to match.
+
+   - `APP_URL`: Laravel application origin.
+   - `FRONTEND_URL`: Vite origin used by the CORS defaults.
+   - `CORS_ALLOWED_ORIGINS`: comma-separated allowed browser origins; credentialed requests are enabled.
+   - `SANCTUM_STATEFUL_DOMAINS`: comma-separated frontend/API hostnames, including ports where applicable.
+   - `VITE_API_BASE_URL`: optional API origin override. Leave blank when the frontend and API are served from the same origin.
+
+4. Review the pending migrations and make a backup before applying migrations to any database with data you need. Apply migrations with:
+
+   ```powershell
+   php artisan migrate
+   ```
+
+   Do not use `php artisan migrate:fresh` or `db:wipe` on a development database containing data you need. Phase 2 adds an additive migration for movement balance snapshots and indexes; it does not require existing movement rows to be rewritten.
+
+5. To load the project's seed records, inspect `database/seeders/DatabaseSeeder.php` and the individual seeders first, then run:
+
+   ```powershell
+   php artisan db:seed
+   ```
+
+   Seeders create or update demo/reference rows. Only seed a database where those records are appropriate.
+
+6. Start the Laravel and Vite development servers in separate PowerShell terminals:
 
    ```powershell
    php artisan serve
@@ -56,59 +85,103 @@ The React SPA uses Laravel Sanctum's first-party, session-cookie authentication.
    npm run dev
    ```
 
-   Open the Laravel app at `http://localhost:8000`. The SPA requests the API from the current origin by default; `VITE_API_BASE_URL` is only needed when deliberately using a separate API origin.
+   Open `http://localhost:8000`. For the SPA session flow, use the same host (`localhost`) for the app and Vite.
 
-### Checks
+## Authentication and authorization
+
+The SPA uses Laravel Sanctum's first-party session-cookie authentication; it does not store bearer tokens. The frontend first requests `/sanctum/csrf-cookie`, then posts credentials to `/login`. Axios sends cookies and the XSRF token with requests. Successful authentication regenerates the session; logout invalidates it and regenerates the CSRF token. Login attempts are rate limited.
+
+Authenticated API routes use `auth:sanctum` and the active-user middleware. Product and inventory reads require the `products.view` permission. Product changes and stock movements require `products.manage`. The React route guards and hidden/disabled navigation are for user experience only; Laravel independently enforces API permissions.
+
+## Product API
+
+All `/api` endpoints require an authenticated active session unless stated otherwise. Product list responses use Laravel pagination (15 per page by default, maximum 100).
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/products` | Paginated product list; supports `search`, `category_id`, `is_active`, `sort_by`, `sort_direction`, `page`, and `per_page`. |
+| `POST` | `/api/products` | Create a product (`products.manage`). |
+| `GET` | `/api/products/{id}` | Retrieve a product with category and stock balance. |
+| `PUT` / `PATCH` | `/api/products/{id}` | Update product fields; the UI archives by setting `is_active` to `false`. |
+| `DELETE` | `/api/products/{id}` | Delete a product through the API. The application UI uses archive rather than hard deletion. |
+
+Product creation requires `sku`, `name`, `category_id`, `unit`, `cost_price`, `selling_price`, and `reorder_level`. SKU is unique; prices and reorder level must be non-negative. List endpoints return `{ current_page, data, last_page, per_page, total, ... }`.
+
+## Inventory API
+
+The inventory API reuses the existing product, stock-balance, and inventory-movement tables. All routes require an authenticated active user. Reads require `products.view`; creating a movement requires `products.manage`.
+
+| Method | Endpoint | Purpose and filters |
+|---|---|---|
+| `GET` | `/api/inventory` | Paginated active inventory; supports `search` (SKU/name), `category_id`, `status` (`all`, `in_stock`, `low_stock`, `out_of_stock`), `sort_by`, `sort_direction`, `page`, and `per_page`. Includes `active_products_count` and `low_stock_count`. |
+| `GET` | `/api/inventory/low-stock` | Paginated active products at or below their reorder level. |
+| `GET` | `/api/stock-balances` | Paginated stock balances. |
+| `GET` | `/api/stock-balances/{productId}` | Current balance for a product; a product without a balance row has quantity zero. |
+| `GET` | `/api/inventory-movements` | Newest-first movement history; supports `product_id`, `movement_type`, `user_id`, `from`, `to`, `page`, and `per_page`. Dates use `YYYY-MM-DD`. |
+| `POST` | `/api/inventory-movements` | Record a receipt, issue, or adjustment. |
+
+Example receipt:
+
+```json
+{
+  "product_id": 12,
+  "movement_type": "inbound",
+  "quantity_delta": 25,
+  "reason": "Supplier delivery"
+}
+```
+
+Example issue:
+
+```json
+{
+  "product_id": 12,
+  "movement_type": "outbound",
+  "quantity_delta": -4,
+  "reason": "Damaged stock"
+}
+```
+
+Example manual adjustment:
+
+```json
+{
+  "product_id": 12,
+  "movement_type": "adjustment",
+  "quantity_delta": -2,
+  "reason": "Physical count correction"
+}
+```
+
+Movement quantities are non-zero signed integers: inbound quantities must be positive, outbound quantities must be negative, and adjustments can be either sign. Adjustments require a reason. The resulting balance cannot be negative. Archived products cannot receive new movements. Supported optional reference types are `order` and `purchase_receipt`; provide `reference_type` and `reference_id` together.
+
+Each successful movement updates the balance and appends a movement in one database transaction. The response includes the resulting product, movement type, signed quantity delta, `quantity_before`, `quantity_after`, reason/reference, creator, and timestamp. Validation errors use Laravel's standard `422` response with field-level `errors`; rejected requests leave both balance and history unchanged. Completed movements are not edited or deleted; correct an entry with a compensating movement.
+
+Low stock means available quantity is less than or equal to that product's `reorder_level`. A quantity of zero is shown as out of stock. A zero reorder level is valid, so zero-quantity products with a zero threshold are low stock. Products without a balance row are treated as zero quantity. Archived products are excluded from the overview counts and low-stock alert.
+
+## UI design and accessibility
+
+The light theme's centralized CSS custom properties live in `resources/css/app.css`: primary indigo (`#4F46E5`), slate sidebar/text, slate page background, white surfaces, slate borders, and semantic success, warning, danger, and information colors. The shell and inventory UI adapt to narrow viewports with a mobile navigation drawer and card layouts. Status text accompanies semantic status colors; visible keyboard focus and reduced-motion handling are included.
+
+Shared controls and states live in `resources/js/components/ui.tsx`. Feature-specific API calls, types, and page behavior are grouped under `resources/js/features/`. `resources/js/api/client.ts` centralizes Axios configuration and validation/error parsing. The app uses TanStack Query for server-state loading and refresh after stock changes.
+
+## Tests and checks
+
+Run the backend and frontend suites and production checks from the repository root:
 
 ```powershell
 php artisan test
 npm test
 npm run typecheck
 npm run build
+php artisan route:list
 ```
 
-The API also provides full resource endpoints for users, roles, permissions, suppliers, customers, purchase receipts and items, orders and items. Inventory movements, order status history, and audit logs support listing, viewing, and creating records only. Stock balances are read-only. Role permissions can be synchronized with `PUT /api/roles/{role}/permissions` using a `permission_ids` array. List endpoints are paginated (15 records per page) by default.
+PHPUnit is configured in `phpunit.xml` to force an in-memory SQLite database. Feature tests therefore do not intentionally use the database configured in `.env`. The SQLite test engine validates application behavior and rollback, but it does not simulate concurrent InnoDB row locks; validate locking behavior under concurrency against MySQL before relying on it in production.
 
-## Learning Laravel
+## Current limitations
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
-
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-## Laravel Sponsors
-
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- The dashboard, supplier/receiving, customer, order, reports, and settings experiences are not implemented as complete UI workflows in these phases.
+- Inventory history can show before/after snapshots for movements recorded after the Phase 2 migration; older movement rows have `null` snapshots.
+- The frontend exposes the stock movement form for users with the manage permission; issue/adjustment policy remains enforced by the API.
+- Tests do not provide a multi-connection MySQL concurrency stress test.

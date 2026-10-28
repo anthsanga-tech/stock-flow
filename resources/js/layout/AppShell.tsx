@@ -5,7 +5,7 @@ import { Button, Icon } from '../components/ui';
 
 const navigation = [
     { label: 'Products', to: '/products', icon: 'P', available: true },
-    { label: 'Inventory', to: '/inventory', icon: 'I', available: false },
+    { label: 'Inventory', to: '/inventory', icon: 'I', available: true },
     { label: 'Suppliers & receiving', to: '/suppliers', icon: 'S', available: false },
     { label: 'Customers', to: '/customers', icon: 'C', available: false },
     { label: 'Orders', to: '/orders', icon: 'O', available: false },
@@ -21,7 +21,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [logoutError, setLogoutError] = useState<string | null>(null);
 
-    const pageTitle = location.pathname.startsWith('/products') ? 'Products' : 'StockFlow';
+    const pageTitle = location.pathname.startsWith('/products')
+        ? 'Products'
+        : location.pathname.startsWith('/inventory')
+            ? 'Inventory'
+            : 'StockFlow';
 
     async function handleLogout() {
         setLogoutError(null);
@@ -116,7 +120,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     </div>
                     <div className="topbar__right">
                         {logoutError && <span className="topbar__error" role="alert">{logoutError}</span>}
-                        <div className="user-menu">
+                        <div
+                            className="user-menu"
+                            onBlur={(event) => {
+                                const nextTarget = event.relatedTarget;
+                                if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+                                    setUserMenuOpen(false);
+                                }
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Escape') {
+                                    setUserMenuOpen(false);
+                                }
+                            }}
+                        >
                             <button
                                 className="user-menu__trigger"
                                 type="button"

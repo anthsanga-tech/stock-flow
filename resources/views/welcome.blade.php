@@ -6,6 +6,7 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <title>StockFlow — Inventory workspace</title>
         @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
+            @viteReactRefresh
             @vite(['resources/css/app.css', 'resources/js/app.tsx'])
         @endif
     </head>

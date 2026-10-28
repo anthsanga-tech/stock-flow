@@ -42,6 +42,27 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function isGuestStatus(status: number | undefined): boolean {
+    return status === 401 || status === 403;
+}
+
+function getResponseStatus(error: unknown): number | undefined {
+    if (axios.isAxiosError(error)) {
+        return error.response?.status;
+    }
+
+    if (typeof error === 'object' && error !== null && 'response' in error) {
+        const response = (error as { response?: { status?: number } }).response;
+        return response?.status;
+    }
+
+    return undefined;
+}
+
+function isGuestAccessError(error: unknown): boolean {
+    return isGuestStatus(getResponseStatus(error));
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [status, setStatus] = useState<AuthStatus>('loading');
@@ -56,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(response.data.user);
             setStatus('authenticated');
         } catch (requestError) {
-            if (axios.isAxiosError(requestError) && requestError.response?.status === 401) {
+            if (isGuestAccessError(requestError)) {
                 setUser(null);
                 setStatus('guest');
                 return;
@@ -75,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const interceptorId = apiClient.interceptors.response.use(
             (response) => response,
             (requestError: unknown) => {
-                if (axios.isAxiosError(requestError) && requestError.response?.status === 401) {
+                if (isGuestAccessError(requestError)) {
                     setUser(null);
                     setStatus('guest');
                 }
@@ -97,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const logout = useCallback(async () => {
         await apiClient.post('/logout');
+        setError(null);
         setUser(null);
         setStatus('guest');
     }, []);

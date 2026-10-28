@@ -3,6 +3,9 @@ import { useAuth } from '../auth/AuthProvider';
 import { LoginPage } from '../features/auth/LoginPage';
 import { ProductFormPage } from '../features/products/ProductFormPage';
 import { ProductListPage } from '../features/products/ProductListPage';
+import { InventoryPage } from '../features/inventory/InventoryPage';
+import { MovementHistoryPage } from '../features/inventory/MovementHistoryPage';
+import { StockOperationsPage } from '../features/inventory/StockOperationsPage';
 import { AppShell } from '../layout/AppShell';
 import { PermissionRoute, ProtectedRoute } from './ProtectedRoute';
 import { ErrorState } from '../components/ui';
@@ -53,6 +56,30 @@ export function App() {
                 element={
                     <ProtectedShell permission="products.manage">
                         <ProductFormPage mode="edit" />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/inventory"
+                element={
+                    <ProtectedShell permission="products.view">
+                        <InventoryPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/inventory/operations"
+                element={
+                    <ProtectedShell permission="products.manage">
+                        <StockOperationsPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/inventory/movements"
+                element={
+                    <ProtectedShell permission="products.view">
+                        <MovementHistoryPage />
                     </ProtectedShell>
                 }
             />
