@@ -23,7 +23,13 @@ class InventoryService
                 ]);
             }
 
-            $delta = (int) $data['quantity_delta'];
+            $delta = filter_var($data['quantity_delta'] ?? null, FILTER_VALIDATE_INT);
+
+            if ($delta === false || $delta === 0) {
+                throw ValidationException::withMessages([
+                    'quantity_delta' => ['The quantity must be a non-zero whole number.'],
+                ]);
+            }
 
             if (($data['movement_type'] === 'inbound' && $delta < 1)
                 || ($data['movement_type'] === 'outbound' && $delta > -1)) {

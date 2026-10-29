@@ -11,8 +11,13 @@ class PurchaseReceiptItemSeeder extends Seeder
 {
     public function run(): void
     {
-        $receipt = PurchaseReceipt::query()->first();
-        $products = Product::query()->limit(2)->get();
+        $receipt = PurchaseReceipt::query()
+            ->where('receipt_number', 'PR-1001')
+            ->first();
+        $products = Product::query()
+            ->orderBy('id')
+            ->limit(2)
+            ->get();
 
         if (! $receipt || $products->isEmpty()) {
             return;

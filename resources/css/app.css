@@ -1318,12 +1318,22 @@ select:focus-visible {
     flex: 1 1 190px;
 }
 
+.inventory-history-filters {
+    align-items: center;
+}
+
 .inventory-date-filter {
-    display: grid;
-    gap: 5px;
+    position: relative;
+    display: block;
     color: var(--color-muted);
     font-size: 9px;
     font-weight: 600;
+}
+
+.inventory-date-filter > span {
+    position: absolute;
+    bottom: calc(100% + 5px);
+    left: 0;
 }
 
 .inventory-date-filter .form-control {
@@ -1451,6 +1461,7 @@ select:focus-visible {
 
     .inventory-history-filters {
         grid-template-columns: 1fr 1fr;
+        align-items: stretch;
     }
 
     .inventory-history-filters > .form-select:first-child {
@@ -1459,6 +1470,15 @@ select:focus-visible {
 
     .inventory-date-filter .form-control {
         min-width: 0;
+    }
+
+    .inventory-date-filter {
+        display: grid;
+        gap: 5px;
+    }
+
+    .inventory-date-filter > span {
+        position: static;
     }
 }
 

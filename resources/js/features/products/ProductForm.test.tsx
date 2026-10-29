@@ -63,7 +63,35 @@ describe('ProductForm', () => {
             selling_price: 4.75,
             reorder_level: 12,
             is_active: true,
+            initial_stock: 0,
         });
+    });
+
+    it('submits initial stock and prevents non-integer values', async () => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn();
+
+        render(
+            <ProductForm
+                categories={categories}
+                isSubmitting={false}
+                onCancel={vi.fn()}
+                onSubmit={onSubmit}
+                submitLabel="Create product"
+            />,
+        );
+
+        await user.type(screen.getByLabelText('SKU'), ' PART-02 ');
+        await user.type(screen.getByLabelText('Product name'), ' Part ');
+        await user.selectOptions(screen.getByLabelText('Category'), '7');
+        await user.type(screen.getByLabelText('Cost price'), '2');
+        await user.type(screen.getByLabelText('Selling price'), '4');
+        await user.clear(screen.getByLabelText('Initial stock'));
+        await user.type(screen.getByLabelText('Initial stock'), '2.5');
+        await user.click(screen.getByRole('button', { name: 'Create product' }));
+
+        expect(screen.getByText('Enter a whole number of zero or more.')).toBeInTheDocument();
+        expect(onSubmit).not.toHaveBeenCalled();
     });
 
     it('displays field-level validation errors returned by the API', () => {

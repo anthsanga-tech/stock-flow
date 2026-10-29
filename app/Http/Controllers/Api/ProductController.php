@@ -3,14 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Product;
+use App\Models\StockBalance;
 use App\Services\ApiResourceService;
+use App\Services\InventoryService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ProductController extends ApiResourceController
 {
+    public function __construct(private readonly InventoryService $inventory) {}
+
     protected function modelClass(): string
     {
         return Product::class;
@@ -60,6 +65,40 @@ class ProductController extends ApiResourceController
         );
     }
 
+    public function store(Request $request, ApiResourceService $service): JsonResponse
+    {
+        $data = $request->validate($this->rules());
+        $initialStock = (int) ($data['initial_stock'] ?? 0);
+        unset($data['initial_stock']);
+
+        $product = DB::transaction(function () use ($data, $initialStock, $request, $service): Product {
+            $product = $service->create(
+                $this->modelClass(),
+                $this->prepareForWrite($data),
+                $this->relations(),
+            );
+
+            if ($initialStock > 0) {
+                $this->inventory->recordMovement([
+                    'product_id' => $product->id,
+                    'movement_type' => 'inbound',
+                    'quantity_delta' => $initialStock,
+                    'reason' => 'Initial stock',
+                ], (int) $request->user()->id);
+            } else {
+                StockBalance::query()->create([
+                    'product_id' => $product->id,
+                    'quantity_on_hand' => 0,
+                    'updated_at' => now(),
+                ]);
+            }
+
+            return $product->load($this->relations());
+        });
+
+        return response()->json($product, 201);
+    }
+
     protected function rules(?Model $model = null): array
     {
         return [
@@ -71,6 +110,7 @@ class ProductController extends ApiResourceController
             'selling_price' => $this->requiredOnCreate($model, 'numeric|min:0'),
             'reorder_level' => $this->requiredOnCreate($model, 'integer|min:0'),
             'is_active' => $this->optionalOnUpdate($model, 'boolean'),
+            'initial_stock' => $model === null ? ['sometimes', 'integer', 'min:0'] : ['prohibited'],
         ];
     }
 }

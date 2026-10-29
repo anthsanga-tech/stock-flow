@@ -23,7 +23,6 @@ class DatabaseSeeder extends Seeder
             PurchaseReceiptSeeder::class,
             PurchaseReceiptItemSeeder::class,
             InventoryMovementSeeder::class,
-            StockBalanceSeeder::class,
             OrderSeeder::class,
             OrderItemSeeder::class,
             OrderStatusHistorySeeder::class,

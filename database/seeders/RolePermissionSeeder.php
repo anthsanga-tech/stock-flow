@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class RolePermissionSeeder extends Seeder
 {
@@ -41,12 +40,7 @@ class RolePermissionSeeder extends Seeder
                 continue;
             }
 
-            foreach ($permissionIds as $permissionId) {
-                DB::table('permission_role')->upsert([
-                    'role_id' => $role->id,
-                    'permission_id' => $permissionId,
-                ], ['role_id', 'permission_id']);
-            }
+            $role->permissions()->syncWithoutDetaching($permissionIds);
         }
     }
 }

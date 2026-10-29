@@ -3,17 +3,154 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
+use App\Models\InventoryMovement;
 use App\Models\Permission;
 use App\Models\Product;
+use App\Models\PurchaseReceipt;
+use App\Models\PurchaseReceiptItem;
 use App\Models\Role;
 use App\Models\StockBalance;
+use App\Models\Supplier;
 use App\Models\User;
+use App\Services\InventoryService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class InventoryManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_product_creation_initializes_zero_balance_without_movement(): void
+    {
+        $this->userWithInventoryPermissions();
+        $category = Category::factory()->create();
+
+        $this->postJson('/api/products', [
+            'sku' => 'ZERO-001',
+            'name' => 'Zero stock product',
+            'category_id' => $category->id,
+            'unit' => 'pcs',
+            'cost_price' => 1,
+            'selling_price' => 2,
+            'reorder_level' => 0,
+        ])->assertCreated()
+            ->assertJsonPath('stock_balance.quantity_on_hand', 0);
+
+        $product = Product::query()->where('sku', 'ZERO-001')->firstOrFail();
+        $this->assertDatabaseHas('stock_balances', [
+            'product_id' => $product->id,
+            'quantity_on_hand' => 0,
+        ]);
+        $this->assertDatabaseCount('inventory_movements', 0);
+    }
+
+    public function test_product_creation_records_provided_initial_stock_as_inbound_movement(): void
+    {
+        $this->userWithInventoryPermissions();
+        $category = Category::factory()->create();
+
+        $this->postJson('/api/products', [
+            'sku' => 'OPEN-001',
+            'name' => 'Opening stock product',
+            'category_id' => $category->id,
+            'unit' => 'pcs',
+            'cost_price' => 1,
+            'selling_price' => 2,
+            'reorder_level' => 0,
+            'initial_stock' => 8,
+        ])->assertCreated()
+            ->assertJsonPath('stock_balance.quantity_on_hand', 8);
+
+        $product = Product::query()->where('sku', 'OPEN-001')->firstOrFail();
+        $this->assertDatabaseHas('stock_balances', [
+            'product_id' => $product->id,
+            'quantity_on_hand' => 8,
+        ]);
+        $this->assertDatabaseHas('inventory_movements', [
+            'product_id' => $product->id,
+            'movement_type' => 'inbound',
+            'quantity_delta' => 8,
+            'quantity_before' => 0,
+            'quantity_after' => 8,
+            'reason' => 'Initial stock',
+        ]);
+    }
+
+    public function test_failed_opening_movement_rolls_back_product_and_balance_creation(): void
+    {
+        $this->userWithInventoryPermissions();
+        $category = Category::factory()->create();
+
+        DB::unprepared(<<<'SQL'
+            CREATE TRIGGER reject_opening_inventory_movement
+            BEFORE INSERT ON inventory_movements
+            BEGIN
+                SELECT RAISE(ABORT, 'forced opening movement failure');
+            END
+            SQL);
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->postJson('/api/products', [
+                'sku' => 'ROLLBACK-001',
+                'name' => 'Rollback product',
+                'category_id' => $category->id,
+                'unit' => 'pcs',
+                'cost_price' => 1,
+                'selling_price' => 2,
+                'reorder_level' => 0,
+                'initial_stock' => 8,
+            ]);
+            $this->fail('The opening movement insert should have failed.');
+        } catch (QueryException) {
+            $this->assertDatabaseMissing('products', ['sku' => 'ROLLBACK-001']);
+            $this->assertDatabaseCount('stock_balances', 0);
+            $this->assertDatabaseCount('inventory_movements', 0);
+        }
+    }
+
+    public function test_invalid_initial_stock_is_rejected_without_creating_product_or_inventory_rows(): void
+    {
+        $this->userWithInventoryPermissions();
+        $category = Category::factory()->create();
+
+        $this->postJson('/api/products', [
+            'sku' => 'INVALID-001',
+            'name' => 'Invalid initial stock',
+            'category_id' => $category->id,
+            'unit' => 'pcs',
+            'cost_price' => 1,
+            'selling_price' => 2,
+            'reorder_level' => 0,
+            'initial_stock' => 'Error',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('initial_stock');
+
+        $this->assertDatabaseMissing('products', ['sku' => 'INVALID-001']);
+        $this->assertDatabaseCount('stock_balances', 0);
+        $this->assertDatabaseCount('inventory_movements', 0);
+    }
+
+    public function test_database_rejects_non_numeric_movement_snapshots(): void
+    {
+        $product = Product::factory()->create();
+
+        try {
+            InventoryMovement::query()->create([
+                'product_id' => $product->id,
+                'movement_type' => 'inbound',
+                'quantity_delta' => 1,
+                'quantity_before' => 'Error',
+                'quantity_after' => 1,
+                'created_at' => now(),
+            ]);
+            $this->fail('The database should reject a non-numeric quantity snapshot.');
+        } catch (QueryException) {
+            $this->assertDatabaseCount('inventory_movements', 0);
+        }
+    }
 
     public function test_receiving_and_issuing_stock_updates_balance_and_audit_snapshots(): void
     {
@@ -43,7 +180,166 @@ class InventoryManagementTest extends TestCase
             'product_id' => $product->id,
             'quantity_on_hand' => 7,
         ]);
+        $this->assertDatabaseHas('inventory_movements', [
+            'product_id' => $product->id,
+            'movement_type' => 'inbound',
+            'quantity_delta' => 12,
+            'quantity_before' => 0,
+            'quantity_after' => 12,
+        ]);
+        $this->assertDatabaseHas('inventory_movements', [
+            'product_id' => $product->id,
+            'movement_type' => 'outbound',
+            'quantity_delta' => -5,
+            'quantity_before' => 12,
+            'quantity_after' => 7,
+        ]);
         $this->assertDatabaseCount('inventory_movements', 2);
+    }
+
+    public function test_two_receipts_then_a_five_unit_issue_keep_balance_and_movement_history_in_sync(): void
+    {
+        $this->userWithInventoryPermissions();
+        $product = Product::factory()->create();
+
+        foreach ([0, 25] as $quantityBefore) {
+            $this->postJson('/api/inventory-movements', [
+                'product_id' => $product->id,
+                'movement_type' => 'inbound',
+                'quantity_delta' => 25,
+                'reason' => 'Supplier receipt',
+            ])->assertCreated()
+                ->assertJsonPath('quantity_before', $quantityBefore)
+                ->assertJsonPath('quantity_after', $quantityBefore + 25);
+        }
+
+        $this->postJson('/api/inventory-movements', [
+            'product_id' => $product->id,
+            'movement_type' => 'outbound',
+            'quantity_delta' => -5,
+            'reason' => 'Customer issue',
+        ])->assertCreated()
+            ->assertJsonPath('quantity_before', 50)
+            ->assertJsonPath('quantity_after', 45);
+
+        $this->assertDatabaseHas('stock_balances', [
+            'product_id' => $product->id,
+            'quantity_on_hand' => 45,
+        ]);
+        $this->assertDatabaseCount('inventory_movements', 3);
+        $this->assertSame(
+            [25, 25, -5],
+            InventoryMovement::query()
+                ->where('product_id', $product->id)
+                ->orderBy('id')
+                ->pluck('quantity_delta')
+                ->all(),
+        );
+    }
+
+    public function test_failed_movement_insert_rolls_back_the_balance_update(): void
+    {
+        $actor = $this->userWithInventoryPermissions();
+        $product = Product::factory()->create();
+
+        DB::unprepared(<<<'SQL'
+            CREATE TRIGGER reject_inventory_movement_insert
+            BEFORE INSERT ON inventory_movements
+            BEGIN
+                SELECT RAISE(ABORT, 'forced inventory movement failure');
+            END
+            SQL);
+
+        try {
+            app(InventoryService::class)->recordMovement([
+                'product_id' => $product->id,
+                'movement_type' => 'inbound',
+                'quantity_delta' => 25,
+            ], $actor->id);
+            $this->fail('The movement insert should have failed.');
+        } catch (QueryException) {
+            $this->assertDatabaseMissing('stock_balances', ['product_id' => $product->id]);
+            $this->assertDatabaseCount('inventory_movements', 0);
+        }
+    }
+
+    public function test_adjustments_update_the_balance_and_append_a_movement(): void
+    {
+        $this->userWithInventoryPermissions();
+        $product = Product::factory()->create();
+
+        $this->postJson('/api/inventory-movements', [
+            'product_id' => $product->id,
+            'movement_type' => 'inbound',
+            'quantity_delta' => 10,
+        ])->assertCreated();
+
+        $this->postJson('/api/inventory-movements', [
+            'product_id' => $product->id,
+            'movement_type' => 'adjustment',
+            'quantity_delta' => -3,
+            'reason' => 'Count correction',
+        ])->assertCreated()
+            ->assertJsonPath('quantity_before', 10)
+            ->assertJsonPath('quantity_after', 7);
+
+        $this->assertDatabaseHas('stock_balances', [
+            'product_id' => $product->id,
+            'quantity_on_hand' => 7,
+        ]);
+        $this->assertDatabaseCount('inventory_movements', 2);
+    }
+
+    public function test_seeded_receipt_lines_generate_matching_movements_and_balances_on_repeated_runs(): void
+    {
+        User::factory()->create();
+        $supplier = Supplier::factory()->create();
+        $receipt = PurchaseReceipt::factory()->create([
+            'supplier_id' => $supplier->id,
+            'receipt_number' => 'PR-1001',
+            'status' => 'received',
+        ]);
+        $products = Product::factory()->count(2)->create();
+        $receiptItemSeeder = app(\Database\Seeders\PurchaseReceiptItemSeeder::class);
+        $movementSeeder = app(\Database\Seeders\InventoryMovementSeeder::class);
+        $inventory = app(InventoryService::class);
+
+        $receiptItemSeeder->run();
+        $movementSeeder->run($inventory);
+        $receiptItemSeeder->run();
+        $movementSeeder->run($inventory);
+
+        $this->assertDatabaseCount('inventory_movements', 2);
+        $this->assertDatabaseCount('purchase_receipt_items', 2);
+        $this->assertDatabaseCount('stock_balances', 2);
+
+        foreach ($products as $index => $product) {
+            $expectedQuantity = 50 + $index * 10;
+
+            $this->assertSame(
+                $expectedQuantity,
+                (int) PurchaseReceiptItem::query()
+                    ->where('receipt_id', $receipt->id)
+                    ->where('product_id', $product->id)
+                    ->value('quantity'),
+            );
+            $this->assertDatabaseHas('inventory_movements', [
+                'product_id' => $product->id,
+                'movement_type' => 'inbound',
+                'quantity_delta' => $expectedQuantity,
+                'reference_type' => 'purchase_receipt',
+                'reference_id' => $receipt->id,
+            ]);
+            $this->assertDatabaseHas('stock_balances', [
+                'product_id' => $product->id,
+                'quantity_on_hand' => $expectedQuantity,
+            ]);
+        }
+
+        $this->assertSame(0, Product::query()
+            ->whereNotIn('id', $products->modelKeys())
+            ->has('inventoryMovements')
+            ->count());
     }
 
     public function test_invalid_or_excessive_movements_do_not_change_balance_or_history(): void

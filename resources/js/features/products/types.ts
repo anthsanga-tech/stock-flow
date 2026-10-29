@@ -52,4 +52,5 @@ export interface ProductPayload {
     selling_price: number;
     reorder_level: number;
     is_active: boolean;
+    initial_stock?: number;
 }

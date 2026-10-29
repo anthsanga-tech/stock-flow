@@ -10,6 +10,7 @@ type ProductFormValues = {
     cost_price: string;
     selling_price: string;
     reorder_level: string;
+    initial_stock: string;
     is_active: boolean;
 };
 
@@ -21,6 +22,7 @@ const emptyValues: ProductFormValues = {
     cost_price: '',
     selling_price: '',
     reorder_level: '0',
+    initial_stock: '0',
     is_active: true,
 };
 
@@ -35,6 +37,7 @@ function valuesFromProduct(product?: Product): ProductFormValues {
         cost_price: String(product.cost_price),
         selling_price: String(product.selling_price),
         reorder_level: String(product.reorder_level),
+        initial_stock: '0',
         is_active: product.is_active,
     };
 }
@@ -77,6 +80,7 @@ export function ProductForm({
         const costPrice = Number(values.cost_price);
         const sellingPrice = Number(values.selling_price);
         const reorderLevel = Number(values.reorder_level);
+        const initialStock = Number(values.initial_stock);
 
         if (!values.sku.trim()) nextErrors.sku = 'Enter a SKU.';
         if (!values.name.trim()) nextErrors.name = 'Enter a product name.';
@@ -91,6 +95,9 @@ export function ProductForm({
         if (values.reorder_level === '' || !Number.isInteger(reorderLevel) || reorderLevel < 0) {
             nextErrors.reorder_level = 'Enter a whole number of zero or more.';
         }
+        if (!initialProduct && (values.initial_stock === '' || !Number.isSafeInteger(initialStock) || initialStock < 0)) {
+            nextErrors.initial_stock = 'Enter a whole number of zero or more.';
+        }
 
         setClientErrors(nextErrors);
         if (Object.keys(nextErrors).length > 0) return;
@@ -104,6 +111,7 @@ export function ProductForm({
             selling_price: sellingPrice,
             reorder_level: reorderLevel,
             is_active: values.is_active,
+            ...(!initialProduct ? { initial_stock: initialStock } : {}),
         });
     }
 
@@ -190,6 +198,19 @@ export function ProductForm({
                         value={values.reorder_level}
                     />
                 </FormField>
+                {!initialProduct && (
+                    <FormField htmlFor="product-initial-stock" label="Initial stock" error={fieldError('initial_stock')} hint="Optional opening quantity; positive quantities are recorded in inventory history.">
+                        <TextInput
+                            hasError={Boolean(fieldError('initial_stock'))}
+                            id="product-initial-stock"
+                            min="0"
+                            onChange={(event) => setValue('initial_stock', event.target.value)}
+                            step="1"
+                            type="number"
+                            value={values.initial_stock}
+                        />
+                    </FormField>
+                )}
                 <label className="checkbox-field" htmlFor="product-active">
                     <input
                         checked={values.is_active}

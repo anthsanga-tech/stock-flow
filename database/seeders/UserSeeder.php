@@ -22,6 +22,10 @@ class UserSeeder extends Seeder
             ['slug' => 'manager'],
             ['name' => 'Manager', 'is_active' => true]
         );
+        $staffRole = Role::query()->firstOrCreate(
+            ['slug' => 'staff'],
+            ['name' => 'Staff', 'is_active' => true]
+        );
 
         User::query()->updateOrCreate(
             ['email' => 'admin@stockflow.test'],
@@ -43,6 +47,6 @@ class UserSeeder extends Seeder
             ]
         );
 
-        User::factory(3)->create();
+        User::factory(3)->create(['role_id' => $staffRole->id]);
     }
 }

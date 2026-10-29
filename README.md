@@ -73,7 +73,7 @@ No additional package installation is required beyond the dependencies in `compo
    php artisan db:seed
    ```
 
-   Seeders create or update demo/reference rows. Only seed a database where those records are appropriate.
+   Seeders create or update demo/reference rows. The `PR-1001` receipt lines are seeded before their inbound movements; movements use those line quantities and the transactional inventory service. Repeated inventory seeding does not duplicate movements or overwrite balances. Only seed a database where those records are appropriate.
 
 6. Start the Laravel and Vite development servers in separate PowerShell terminals:
 
@@ -93,6 +93,8 @@ The SPA uses Laravel Sanctum's first-party session-cookie authentication; it doe
 
 Authenticated API routes use `auth:sanctum` and the active-user middleware. Product and inventory reads require the `products.view` permission. Product changes and stock movements require `products.manage`. The React route guards and hidden/disabled navigation are for user experience only; Laravel independently enforces API permissions.
 
+The demo accounts created by the seeders are assigned roles. Admin, manager, and staff roles receive their permissions from `RolePermissionSeeder`; users without an active role and the required permission are intentionally denied access. If an existing database has roles but no permissions, run `php artisan db:seed --class=PermissionSeeder` followed by `php artisan db:seed --class=RolePermissionSeeder`, then sign out and back in to refresh the session's permission list.
+
 ## Product API
 
 All `/api` endpoints require an authenticated active session unless stated otherwise. Product list responses use Laravel pagination (15 per page by default, maximum 100).
@@ -105,7 +107,7 @@ All `/api` endpoints require an authenticated active session unless stated other
 | `PUT` / `PATCH` | `/api/products/{id}` | Update product fields; the UI archives by setting `is_active` to `false`. |
 | `DELETE` | `/api/products/{id}` | Delete a product through the API. The application UI uses archive rather than hard deletion. |
 
-Product creation requires `sku`, `name`, `category_id`, `unit`, `cost_price`, `selling_price`, and `reorder_level`. SKU is unique; prices and reorder level must be non-negative. List endpoints return `{ current_page, data, last_page, per_page, total, ... }`.
+Product creation requires `sku`, `name`, `category_id`, `unit`, `cost_price`, `selling_price`, and `reorder_level`. SKU is unique; prices and reorder level must be non-negative. The optional `initial_stock` must be a non-negative integer. Products created without it start with a zero balance and no movement; a positive value creates an inbound opening movement and matching balance atomically. List endpoints return `{ current_page, data, last_page, per_page, total, ... }`.
 
 ## Inventory API
 
