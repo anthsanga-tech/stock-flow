@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
+use App\Models\InventoryMovement;
 use App\Models\Permission;
 use App\Models\Product;
 use App\Models\Role;
@@ -123,30 +124,40 @@ class ApiResourceTest extends TestCase
         ])->assertCreated()->json('id');
 
         $supplier = $this->postJson('/api/suppliers', [
+            'supplier_code' => 'SUP-PARTS-01',
             'name' => 'Parts Supplier',
         ])->assertCreated()->json('id');
-        $receipt = $this->postJson('/api/purchase-receipts', [
+        $purchaseOrder = $this->postJson('/api/purchase-orders', [
             'supplier_id' => $supplier,
-            'receipt_number' => 'RCPT-001',
+            'order_date' => now()->toDateString(),
+            'items' => [[
+                'product_id' => $product,
+                'quantity' => 5,
+                'unit_cost' => 2,
+            ]],
         ])->assertCreated()->json('id');
-        $this->postJson('/api/purchase-receipt-items', [
-            'receipt_id' => $receipt,
-            'product_id' => $product,
-            'quantity' => 5,
-            'unit_cost' => 2,
-        ])->assertCreated();
-
-        $this->postJson('/api/inventory-movements', [
-            'product_id' => $product,
-            'movement_type' => 'inbound',
-            'quantity_delta' => 5,
-            'reference_type' => 'purchase_receipt',
-            'reference_id' => $receipt,
-            'reason' => 'Receipt test',
+        $this->postJson("/api/purchase-orders/{$purchaseOrder}/submit")->assertOk()
+            ->assertJsonPath('status', 'submitted');
+        $this->postJson("/api/purchase-orders/{$purchaseOrder}/approve")->assertOk()
+            ->assertJsonPath('status', 'approved');
+        $purchaseOrderItem = \App\Models\PurchaseOrder::query()
+            ->findOrFail($purchaseOrder)->items()->firstOrFail();
+        $receipt = $this->postJson("/api/purchase-orders/{$purchaseOrder}/receipts", [
+            'idempotency_key' => (string) \Illuminate\Support\Str::uuid(),
+            'received_at' => now()->toDateString(),
+            'items' => [[
+                'purchase_order_item_id' => $purchaseOrderItem->id,
+                'quantity' => 5,
+            ]],
         ])->assertCreated()
-            ->assertJsonPath('created_by', $actor->id)
-            ->assertJsonPath('creator.id', $actor->id)
-            ->assertJsonPath('reference.id', $receipt);
+            ->assertJsonPath('items.0.quantity', 5)
+            ->json('id');
+
+        $movement = InventoryMovement::query()->where('reference_id', $receipt)->firstOrFail();
+        $this->assertSame('purchase_receipt', $movement->reference_type);
+        $this->assertSame(5, $movement->quantity_delta);
+        $this->assertSame($actor->id, $movement->created_by);
+        $this->assertSame($receipt, $movement->reference->id);
 
         $customer = $this->postJson('/api/customers', [
             'name' => 'Customer One',
@@ -196,11 +207,19 @@ class ApiResourceTest extends TestCase
                 'slug' => 'products.view',
             ]),
         ];
+        $permissions[] = Permission::factory()->create([
+            'name' => 'View Suppliers',
+            'slug' => 'suppliers.view',
+        ]);
 
         if ($canManage) {
             $permissions[] = Permission::factory()->create([
                 'name' => 'Manage Products',
                 'slug' => 'products.manage',
+            ]);
+            $permissions[] = Permission::factory()->create([
+                'name' => 'Manage Suppliers',
+                'slug' => 'suppliers.manage',
             ]);
         }
 

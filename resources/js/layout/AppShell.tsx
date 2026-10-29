@@ -4,9 +4,11 @@ import { useAuth } from '../auth/AuthProvider';
 import { Button, Icon } from '../components/ui';
 
 const navigation = [
-    { label: 'Products', to: '/products', icon: 'P', available: true },
-    { label: 'Inventory', to: '/inventory', icon: 'I', available: true },
-    { label: 'Suppliers & receiving', to: '/suppliers', icon: 'S', available: false },
+    { label: 'Products', to: '/products', icon: 'P', available: true, permission: 'products.view' },
+    { label: 'Inventory', to: '/inventory', icon: 'I', available: true, permission: 'products.view' },
+    { label: 'Suppliers', to: '/suppliers', icon: 'S', available: true, permission: 'suppliers.view' },
+    { label: 'Purchase orders', to: '/purchase-orders', icon: 'P', available: true, permission: 'suppliers.view' },
+    { label: 'Goods receipts', to: '/goods-receipts', icon: 'G', available: true, permission: 'suppliers.view' },
     { label: 'Customers', to: '/customers', icon: 'C', available: false },
     { label: 'Orders', to: '/orders', icon: 'O', available: false },
     { label: 'Reports', to: '/reports', icon: 'R', available: false },
@@ -25,7 +27,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ? 'Products'
         : location.pathname.startsWith('/inventory')
             ? 'Inventory'
-            : 'StockFlow';
+            : location.pathname.startsWith('/suppliers') || location.pathname.startsWith('/purchase-orders') || location.pathname.startsWith('/goods-receipts')
+                ? 'Purchasing'
+                : 'StockFlow';
 
     async function handleLogout() {
         setLogoutError(null);
@@ -60,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
                 {!collapsed && <p className="sidebar__section-label">WORKSPACE</p>}
                 <nav className="sidebar__nav">
-                    {navigation.filter((item) => !item.available || user?.permissions.includes('products.view')).map((item) => item.available ? (
+                    {navigation.filter((item) => !item.available || Boolean(item.permission && user?.permissions.includes(item.permission))).map((item) => item.available ? (
                         <NavLink
                             key={item.label}
                             to={item.to}

@@ -11,13 +11,16 @@ class PurchaseReceipt extends Model
 {
     use HasFactory;
 
-    public $timestamps = false;
-
     protected $fillable = [
         'supplier_id',
+        'purchase_order_id',
         'receipt_number',
         'status',
         'received_at',
+        'delivery_reference',
+        'notes',
+        'idempotency_key',
+        'request_hash',
         'created_by',
     ];
 
@@ -43,5 +46,10 @@ class PurchaseReceipt extends Model
     public function items(): HasMany
     {
         return $this->hasMany(PurchaseReceiptItem::class, 'receipt_id');
+    }
+
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class);
     }
 }

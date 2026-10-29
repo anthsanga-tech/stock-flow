@@ -10,13 +10,14 @@ class Supplier extends Model
 {
     use HasFactory;
 
-    public $timestamps = false;
-
     protected $fillable = [
+        'supplier_code',
         'name',
+        'contact_person',
         'email',
         'phone',
         'address',
+        'notes',
         'is_active',
     ];
 
@@ -27,5 +28,10 @@ class Supplier extends Model
     public function purchaseReceipts(): HasMany
     {
         return $this->hasMany(PurchaseReceipt::class);
+    }
+
+    public function purchaseOrders(): HasMany
+    {
+        return $this->hasMany(PurchaseOrder::class);
     }
 }

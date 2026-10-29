@@ -6,6 +6,15 @@ import { ProductListPage } from '../features/products/ProductListPage';
 import { InventoryPage } from '../features/inventory/InventoryPage';
 import { MovementHistoryPage } from '../features/inventory/MovementHistoryPage';
 import { StockOperationsPage } from '../features/inventory/StockOperationsPage';
+import { SupplierListPage } from '../features/purchasing/SupplierListPage';
+import { SupplierFormPage } from '../features/purchasing/SupplierFormPage';
+import { SupplierDetailsPage } from '../features/purchasing/SupplierDetailsPage';
+import { PurchaseOrderListPage } from '../features/purchasing/PurchaseOrderListPage';
+import { PurchaseOrderFormPage } from '../features/purchasing/PurchaseOrderFormPage';
+import { PurchaseOrderDetailsPage } from '../features/purchasing/PurchaseOrderDetailsPage';
+import { ReceiveGoodsPage } from '../features/purchasing/ReceiveGoodsPage';
+import { GoodsReceiptHistoryPage } from '../features/purchasing/GoodsReceiptHistoryPage';
+import { GoodsReceiptDetailsPage } from '../features/purchasing/GoodsReceiptDetailsPage';
 import { AppShell } from '../layout/AppShell';
 import { PermissionRoute, ProtectedRoute } from './ProtectedRoute';
 import { ErrorState } from '../components/ui';
@@ -80,6 +89,94 @@ export function App() {
                 element={
                     <ProtectedShell permission="products.view">
                         <MovementHistoryPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/suppliers"
+                element={
+                    <ProtectedShell permission="suppliers.view">
+                        <SupplierListPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/suppliers/new"
+                element={
+                    <ProtectedShell permission="suppliers.manage">
+                        <SupplierFormPage mode="create" />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/suppliers/:id/edit"
+                element={
+                    <ProtectedShell permission="suppliers.manage">
+                        <SupplierFormPage mode="edit" />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/suppliers/:id"
+                element={
+                    <ProtectedShell permission="suppliers.view">
+                        <SupplierDetailsPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/purchase-orders"
+                element={
+                    <ProtectedShell permission="suppliers.view">
+                        <PurchaseOrderListPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/purchase-orders/new"
+                element={
+                    <ProtectedShell permission="suppliers.manage">
+                        <PurchaseOrderFormPage mode="create" />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/purchase-orders/:id/edit"
+                element={
+                    <ProtectedShell permission="suppliers.manage">
+                        <PurchaseOrderFormPage mode="edit" />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/purchase-orders/:id/receive"
+                element={
+                    <ProtectedShell permission="suppliers.manage">
+                        <ReceiveGoodsPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/purchase-orders/:id"
+                element={
+                    <ProtectedShell permission="suppliers.view">
+                        <PurchaseOrderDetailsPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/goods-receipts"
+                element={
+                    <ProtectedShell permission="suppliers.view">
+                        <GoodsReceiptHistoryPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/goods-receipts/:id"
+                element={
+                    <ProtectedShell permission="suppliers.view">
+                        <GoodsReceiptDetailsPage />
                     </ProtectedShell>
                 }
             />

@@ -219,6 +219,8 @@ export function ConfirmDialog({
     title,
     message,
     confirmLabel,
+    cancelLabel = 'Keep product',
+    pendingLabel = 'Archiving…',
     isPending = false,
     onCancel,
     onConfirm,
@@ -227,6 +229,8 @@ export function ConfirmDialog({
     title: string;
     message: string;
     confirmLabel: string;
+    cancelLabel?: string;
+    pendingLabel?: string;
     isPending?: boolean;
     onCancel: () => void;
     onConfirm: () => void;
@@ -281,10 +285,10 @@ export function ConfirmDialog({
                 <p>{message}</p>
                 <div className="confirm-dialog__actions">
                     <Button ref={cancelRef} variant="secondary" disabled={isPending} onClick={onCancel}>
-                        Keep product
+                        {cancelLabel}
                     </Button>
                     <Button variant="danger" disabled={isPending} onClick={onConfirm}>
-                        {isPending ? 'Archiving…' : confirmLabel}
+                        {isPending ? pendingLabel : confirmLabel}
                     </Button>
                 </div>
             </div>

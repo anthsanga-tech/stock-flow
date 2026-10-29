@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProductController extends ApiResourceController
 {
@@ -97,6 +98,24 @@ class ProductController extends ApiResourceController
         });
 
         return response()->json($product, 201);
+    }
+
+    public function update(Request $request, int $id, ApiResourceService $service): JsonResponse
+    {
+        $product = Product::query()->findOrFail($id);
+        $data = $request->validate($this->rules($product));
+
+        if (array_key_exists('is_active', $data) && ! (bool) $data['is_active']
+            && $product->purchaseOrderItems()
+                ->whereColumn('purchase_order_items.received_quantity', '<', 'purchase_order_items.quantity')
+                ->whereHas('purchaseOrder', fn ($query) => $query->whereNotIn('status', ['received', 'cancelled']))
+                ->exists()) {
+            throw ValidationException::withMessages([
+                'is_active' => ['Products with outstanding purchase orders cannot be archived until those orders are completed or cancelled.'],
+            ]);
+        }
+
+        return parent::update($request, $id, $service);
     }
 
     protected function rules(?Model $model = null): array

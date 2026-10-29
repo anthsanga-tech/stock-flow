@@ -11,7 +11,7 @@ use App\Http\Controllers\Api\OrderStatusHistoryController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\PurchaseReceiptController;
-use App\Http\Controllers\Api\PurchaseReceiptItemController;
+use App\Http\Controllers\Api\PurchaseOrderController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\RolePermissionController;
 use App\Http\Controllers\Api\StockBalanceController;
@@ -41,13 +41,35 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class])->group(function (
     Route::put('roles/{role}/permissions', [RolePermissionController::class, 'update'])
         ->name('roles.permissions.update');
     Route::apiResource('permissions', PermissionController::class);
-    Route::apiResource('suppliers', SupplierController::class);
+    Route::middleware('permission:suppliers.view')->group(function () {
+        Route::get('suppliers', [SupplierController::class, 'index'])->name('suppliers.index');
+        Route::get('suppliers/{supplier}', [SupplierController::class, 'show'])->name('suppliers.show');
+        Route::get('suppliers/{supplier}/purchase-orders', [SupplierController::class, 'purchaseOrders'])->name('suppliers.purchase-orders');
+    });
+    Route::middleware('permission:suppliers.manage')->group(function () {
+        Route::post('suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
+        Route::put('suppliers/{supplier}', [SupplierController::class, 'update'])->name('suppliers.update');
+        Route::patch('suppliers/{supplier}', [SupplierController::class, 'update'])->name('suppliers.patch');
+        Route::delete('suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.deactivate');
+    });
     Route::apiResource('customers', CustomerController::class);
     Route::post('inventory-movements', [InventoryMovementController::class, 'store'])
         ->middleware('permission:products.manage')
         ->name('inventory-movements.store');
-    Route::apiResource('purchase-receipts', PurchaseReceiptController::class);
-    Route::apiResource('purchase-receipt-items', PurchaseReceiptItemController::class);
+    Route::middleware('permission:suppliers.view')->group(function () {
+        Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
+        Route::get('purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('purchase-orders.show');
+        Route::get('goods-receipts', [PurchaseReceiptController::class, 'index'])->name('goods-receipts.index');
+        Route::get('goods-receipts/{purchaseReceipt}', [PurchaseReceiptController::class, 'show'])->name('goods-receipts.show');
+    });
+    Route::middleware('permission:suppliers.manage')->group(function () {
+        Route::post('purchase-orders', [PurchaseOrderController::class, 'store'])->name('purchase-orders.store');
+        Route::put('purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->name('purchase-orders.update');
+        Route::post('purchase-orders/{purchaseOrder}/submit', [PurchaseOrderController::class, 'submit'])->name('purchase-orders.submit');
+        Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
+        Route::post('purchase-orders/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel'])->name('purchase-orders.cancel');
+        Route::post('purchase-orders/{purchaseOrder}/receipts', [PurchaseReceiptController::class, 'store'])->name('purchase-orders.receipts.store');
+    });
     Route::apiResource('orders', OrderController::class);
     Route::apiResource('order-items', OrderItemController::class);
     Route::apiResource('order-status-history', OrderStatusHistoryController::class)

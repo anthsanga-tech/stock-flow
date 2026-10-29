@@ -1,6 +1,6 @@
 # StockFlow
 
-StockFlow is a small-business inventory and order-management application. This repository currently contains the Phase 1 UI foundation and product-management workflow, plus the Phase 2 inventory workflow. It uses Laravel 11 for the JSON API and server-rendered SPA entry point, with React, TypeScript, Vite, and TanStack Query for the client.
+StockFlow is a small-business inventory and order-management application. It contains the Phase 1 UI foundation and product-management workflow, Phase 2 inventory management, and Phase 3 supplier and purchasing workflows. It uses Laravel 11 for the JSON API and SPA entry point, with React, TypeScript, Vite, and TanStack Query for the client.
 
 ## Current capabilities
 
@@ -20,8 +20,19 @@ StockFlow is a small-business inventory and order-management application. This r
 - Newest-first, paginated movement history with filters for product, movement type, actor, and date range.
 - Atomic stock balance updates and append-only movement records with before/after quantity snapshots, actor, reason, optional supported reference, and timestamp.
 - Per-product low-stock calculation; archived products are excluded from active inventory and alerts.
+- Purchase-order receiving cannot archive a product with outstanding purchasing quantities.
 
-Products and Inventory are the currently implemented application areas. Suppliers, purchase receiving UI, customers, orders, reports, and settings are not complete user-facing features in these phases, even though related backend models or API resources may exist.
+### Phase 3: Suppliers and purchasing
+
+- Supplier directory with unique supplier codes, contact details, active/inactive status, searchable pagination, and preserved purchase history.
+- Draft purchase orders with multiple product lines, product/SKU snapshots, server-calculated subtotals and totals, expected delivery dates, and status history.
+- Purchase-order lifecycle: `draft -> submitted -> approved -> partially_received -> received`; eligible unreceived orders can be cancelled.
+- Partial goods receipts against approved orders, with cumulative outstanding quantities, delivery references, notes, responsible user, and immutable receipt history.
+- Receiving updates stock balances through the existing inventory service and appends linked inbound inventory movements in the same transaction.
+- Receipt idempotency keys protect against repeated requests; orders and inventory rows are locked during receiving. SQLite tests verify rollback and repeated-request behavior, but do not prove MySQL concurrency behavior.
+- Permission-gated supplier, purchase-order, and goods-receipt pages and APIs.
+
+Customers, sales orders, reports, and settings are not complete user-facing workflows.
 
 ## Technology
 
@@ -65,7 +76,7 @@ No additional package installation is required beyond the dependencies in `compo
    php artisan migrate
    ```
 
-   Do not use `php artisan migrate:fresh` or `db:wipe` on a development database containing data you need. Phase 2 adds an additive migration for movement balance snapshots and indexes; it does not require existing movement rows to be rewritten.
+   Do not use `php artisan migrate:fresh` or `db:wipe` on a development database containing data you need. Phase 2 adds movement balance snapshots; Phase 3 adds supplier fields and purchase-order/receipt linkage additively. Existing suppliers receive generated supplier codes, and existing receipts remain available as legacy receipts.
 
 5. To load the project's seed records, inspect `database/seeders/DatabaseSeeder.php` and the individual seeders first, then run:
 
@@ -73,7 +84,7 @@ No additional package installation is required beyond the dependencies in `compo
    php artisan db:seed
    ```
 
-   Seeders create or update demo/reference rows. The `PR-1001` receipt lines are seeded before their inbound movements; movements use those line quantities and the transactional inventory service. Repeated inventory seeding does not duplicate movements or overwrite balances. Only seed a database where those records are appropriate.
+   Seeders create or update demo/reference rows. The legacy `PR-1001` receipt lines are seeded before their inbound movements; movements use those line quantities and the transactional inventory service. Repeated inventory seeding does not duplicate movements or overwrite balances. Only seed a database where those records are appropriate.
 
 6. Start the Laravel and Vite development servers in separate PowerShell terminals:
 
@@ -94,6 +105,8 @@ The SPA uses Laravel Sanctum's first-party session-cookie authentication; it doe
 Authenticated API routes use `auth:sanctum` and the active-user middleware. Product and inventory reads require the `products.view` permission. Product changes and stock movements require `products.manage`. The React route guards and hidden/disabled navigation are for user experience only; Laravel independently enforces API permissions.
 
 The demo accounts created by the seeders are assigned roles. Admin, manager, and staff roles receive their permissions from `RolePermissionSeeder`; users without an active role and the required permission are intentionally denied access. If an existing database has roles but no permissions, run `php artisan db:seed --class=PermissionSeeder` followed by `php artisan db:seed --class=RolePermissionSeeder`, then sign out and back in to refresh the session's permission list.
+
+Supplier and purchasing reads require `suppliers.view`; creating and changing suppliers, purchase orders, statuses, and receipts require `suppliers.manage`. The seeded admin has all permissions, and the manager role has supplier/purchasing view and manage permissions. The same active-user check and permission middleware protect the APIs independently of the React route guards.
 
 ## Product API
 
@@ -161,6 +174,78 @@ Each successful movement updates the balance and appends a movement in one datab
 
 Low stock means available quantity is less than or equal to that product's `reorder_level`. A quantity of zero is shown as out of stock. A zero reorder level is valid, so zero-quantity products with a zero threshold are low stock. Products without a balance row are treated as zero quantity. Archived products are excluded from the overview counts and low-stock alert.
 
+## Suppliers and purchasing API
+
+All endpoints below require an authenticated active session. Supplier, purchase-order, and receipt reads require `suppliers.view`; writes require `suppliers.manage`. Lists use Laravel pagination (15 rows by default, maximum 100). Supplier deactivation is a soft status change; the API does not delete supplier history.
+
+### Suppliers
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/suppliers` | Paginated supplier list; supports `search`, `status` (`active` or `inactive`), `sort_by`, `sort_direction`, and pagination. |
+| `POST` | `/api/suppliers` | Create a supplier with a unique `supplier_code` and required `name`. |
+| `GET` | `/api/suppliers/{id}` | Supplier details and purchase-order counts, including outstanding orders. |
+| `GET` | `/api/suppliers/{id}/purchase-orders` | Paginated supplier purchase-order history. |
+| `PUT` / `PATCH` | `/api/suppliers/{id}` | Edit supplier fields or reactivate an inactive supplier. |
+| `DELETE` | `/api/suppliers/{id}` | Deactivate the supplier without deleting historical records. |
+
+Supplier fields are `supplier_code`, `name`, `contact_person`, `email`, `phone`, `address`, `notes`, and `is_active`. Inactive suppliers cannot be assigned to new purchase orders.
+
+### Purchase orders
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/purchase-orders` | Search and paginate by order number/supplier; filter supplier, status, order/expected date ranges; sort by number, date, total, status, and more. |
+| `POST` | `/api/purchase-orders` | Create a draft and its line items. The backend generates the order number and calculates all subtotals and totals. |
+| `GET` | `/api/purchase-orders/{id}` | Order details, line-item received/outstanding quantities, status history, and receipts. |
+| `PUT` | `/api/purchase-orders/{id}` | Update an editable draft and its items. |
+| `POST` | `/api/purchase-orders/{id}/submit` | Move a draft to `submitted`. |
+| `POST` | `/api/purchase-orders/{id}/approve` | Move a submitted order to `approved`. |
+| `POST` | `/api/purchase-orders/{id}/cancel` | Cancel a draft, submitted, or approved order before receiving starts. |
+
+Example draft request:
+
+```json
+{
+  "supplier_id": 4,
+  "order_date": "2026-10-29",
+  "expected_delivery_date": "2026-11-05",
+  "notes": "Deliver to receiving dock",
+  "items": [
+    { "product_id": 12, "quantity": 20, "unit_cost": 4.25 },
+    { "product_id": 15, "quantity": 5, "unit_cost": 13.00 }
+  ]
+}
+```
+
+Client-supplied totals are ignored. Purchase-order lines preserve the product name/SKU and unit-cost snapshot. Line items are editable only while the order remains a draft.
+
+### Goods receipts
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/purchase-orders/{id}/receipts` | Record a partial or complete delivery against an approved order. |
+| `GET` | `/api/goods-receipts` | Paginated receipt history; filter supplier, purchase order, date range, delivery reference, or receipt/reference search. |
+| `GET` | `/api/goods-receipts/{id}` | Immutable receipt details and received item snapshots. |
+
+Example partial receipt request:
+
+```json
+{
+  "idempotency_key": "25cfc5ac-ded9-4691-8cfe-30c12852725c",
+  "received_at": "2026-10-30",
+  "delivery_reference": "DN-8842",
+  "notes": "First delivery",
+  "items": [
+    { "purchase_order_item_id": 31, "quantity": 8 }
+  ]
+}
+```
+
+Only outstanding quantities can be received. Repeat deliveries accumulate until each line reaches its ordered quantity; orders transition to `partially_received` or `received`. Each successful receipt, receipt line, stock update, and `inbound` movement linked by `reference_type: "purchase_receipt"` is committed in one database transaction. Reuse the same idempotency key for a retry of the same request; a reused key with a different payload is rejected. Completed receipts have no update or delete endpoint; use a separate compensating inventory adjustment for a stock correction and retain the original audit trail.
+
+The workflow is available in the SPA at `/suppliers`, `/purchase-orders`, and `/goods-receipts`. A draft can be submitted and approved from its detail page; approved orders can receive one or more deliveries.
+
 ## UI design and accessibility
 
 The light theme's centralized CSS custom properties live in `resources/css/app.css`: primary indigo (`#4F46E5`), slate sidebar/text, slate page background, white surfaces, slate borders, and semantic success, warning, danger, and information colors. The shell and inventory UI adapt to narrow viewports with a mobile navigation drawer and card layouts. Status text accompanies semantic status colors; visible keyboard focus and reduced-motion handling are included.
@@ -183,7 +268,7 @@ PHPUnit is configured in `phpunit.xml` to force an in-memory SQLite database. Fe
 
 ## Current limitations
 
-- The dashboard, supplier/receiving, customer, order, reports, and settings experiences are not implemented as complete UI workflows in these phases.
+- The dashboard, customer, sales-order, reports, and settings experiences are not implemented as complete UI workflows.
 - Inventory history can show before/after snapshots for movements recorded after the Phase 2 migration; older movement rows have `null` snapshots.
 - The frontend exposes the stock movement form for users with the manage permission; issue/adjustment policy remains enforced by the API.
-- Tests do not provide a multi-connection MySQL concurrency stress test.
+- Tests do not provide a multi-connection MySQL concurrency stress test. Receipt locking and idempotency are implemented, but production concurrency still needs validation with MySQL/InnoDB.

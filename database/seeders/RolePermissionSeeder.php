@@ -23,6 +23,7 @@ class RolePermissionSeeder extends Seeder
             'orders.view',
             'orders.manage',
             'suppliers.view',
+            'suppliers.manage',
             'customers.view',
         ])->pluck('id')->all();
         $staffPermissions = Permission::query()->whereIn('slug', [
