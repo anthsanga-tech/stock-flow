@@ -28,7 +28,10 @@ class OrderItemFactory extends Factory
             'name_snapshot' => fake()->words(2, true),
             'quantity' => $quantity,
             'unit_price' => $unitPrice,
+            'discount_amount' => 0,
             'line_total' => round($quantity * $unitPrice, 2),
+            'created_at' => now(),
+            'updated_at' => now(),
         ];
     }
 }

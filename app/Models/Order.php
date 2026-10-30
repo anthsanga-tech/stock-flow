@@ -16,12 +16,17 @@ class Order extends Model
     protected $fillable = [
         'order_number',
         'customer_id',
+        'order_date',
+        'expected_delivery_date',
         'status',
         'subtotal',
         'discount',
         'tax',
         'total',
+        'notes',
         'created_by',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [
@@ -29,6 +34,10 @@ class Order extends Model
         'discount' => 'decimal:2',
         'tax' => 'decimal:2',
         'total' => 'decimal:2',
+        'order_date' => 'date:Y-m-d',
+        'expected_delivery_date' => 'date:Y-m-d',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     public function customer(): BelongsTo
@@ -54,5 +63,10 @@ class Order extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class);
+    }
+
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(StockReservation::class, 'sales_order_id');
     }
 }

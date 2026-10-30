@@ -22,12 +22,15 @@ class OrderSeeder extends Seeder
             ['order_number' => 'SO-1001'],
             [
                 'customer_id' => $customer->id,
-                'status' => 'pending',
-                'subtotal' => 120.00,
-                'discount' => 10.00,
-                'tax' => 8.40,
-                'total' => 118.40,
+                'status' => 'draft',
+                'order_date' => now()->toDateString(),
+                'subtotal' => 0,
+                'discount' => 0,
+                'tax' => 0,
+                'total' => 0,
                 'created_by' => $user->id,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]
         );
     }

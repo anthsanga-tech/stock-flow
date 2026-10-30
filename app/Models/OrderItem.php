@@ -21,12 +21,16 @@ class OrderItem extends Model
         'name_snapshot',
         'quantity',
         'unit_price',
+        'discount_amount',
         'line_total',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
         'unit_price' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
         'line_total' => 'decimal:2',
     ];
 
@@ -38,5 +42,10 @@ class OrderItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function reservation(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(StockReservation::class, 'sales_order_item_id');
     }
 }

@@ -9,8 +9,8 @@ const navigation = [
     { label: 'Suppliers', to: '/suppliers', icon: 'S', available: true, permission: 'suppliers.view' },
     { label: 'Purchase orders', to: '/purchase-orders', icon: 'P', available: true, permission: 'suppliers.view' },
     { label: 'Goods receipts', to: '/goods-receipts', icon: 'G', available: true, permission: 'suppliers.view' },
-    { label: 'Customers', to: '/customers', icon: 'C', available: false },
-    { label: 'Orders', to: '/orders', icon: 'O', available: false },
+    { label: 'Customers', to: '/customers', icon: 'C', available: true, permission: 'customers.view' },
+    { label: 'Sales orders', to: '/orders', icon: 'O', available: true, permission: 'orders.view' },
     { label: 'Reports', to: '/reports', icon: 'R', available: false },
     { label: 'Settings & users', to: '/settings', icon: 'U', available: false },
 ];
@@ -29,6 +29,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ? 'Inventory'
             : location.pathname.startsWith('/suppliers') || location.pathname.startsWith('/purchase-orders') || location.pathname.startsWith('/goods-receipts')
                 ? 'Purchasing'
+                : location.pathname.startsWith('/customers') || location.pathname.startsWith('/orders')
+                    ? 'Sales'
                 : 'StockFlow';
 
     async function handleLogout() {

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\StockBalance;
+use App\Models\StockReservation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -49,6 +50,19 @@ class InventoryService
                 throw ValidationException::withMessages([
                     'quantity_delta' => ['The movement cannot reduce stock below zero.'],
                 ]);
+            }
+
+            if ($delta < 0) {
+                $reservedQuantity = (int) StockReservation::query()
+                    ->where('product_id', $product->id)
+                    ->where('status', 'reserved')
+                    ->sum('reserved_quantity');
+
+                if ($quantityAfter < $reservedQuantity) {
+                    throw ValidationException::withMessages([
+                        'quantity_delta' => ['This movement would consume stock reserved for sales orders.'],
+                    ]);
+                }
             }
 
             if ($balance) {

@@ -11,19 +11,20 @@ class OrderStatusHistorySeeder extends Seeder
 {
     public function run(): void
     {
-        $order = Order::query()->first();
+        $order = Order::query()->where('order_number', 'SO-1001')->first();
         $user = User::query()->first();
 
         if (! $order || ! $user) {
             return;
         }
 
-        OrderStatusHistory::query()->create([
+        OrderStatusHistory::query()->updateOrCreate([
             'order_id' => $order->id,
-            'from_status' => 'new',
-            'to_status' => 'pending',
+            'to_status' => 'draft',
+        ], [
+            'from_status' => null,
             'changed_by' => $user->id,
-            'note' => 'Order created and queued for processing.',
+            'note' => 'Draft sales order created.',
             'created_at' => now(),
         ]);
     }

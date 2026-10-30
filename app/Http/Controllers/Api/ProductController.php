@@ -102,20 +102,41 @@ class ProductController extends ApiResourceController
 
     public function update(Request $request, int $id, ApiResourceService $service): JsonResponse
     {
-        $product = Product::query()->findOrFail($id);
-        $data = $request->validate($this->rules($product));
+        return DB::transaction(function () use ($request, $id, $service): JsonResponse {
+            $product = Product::query()->lockForUpdate()->findOrFail($id);
+            $data = $request->validate($this->rules($product));
 
-        if (array_key_exists('is_active', $data) && ! (bool) $data['is_active']
-            && $product->purchaseOrderItems()
-                ->whereColumn('purchase_order_items.received_quantity', '<', 'purchase_order_items.quantity')
-                ->whereHas('purchaseOrder', fn ($query) => $query->whereNotIn('status', ['received', 'cancelled']))
-                ->exists()) {
+            if (array_key_exists('is_active', $data) && ! (bool) $data['is_active']) {
+                if ($product->purchaseOrderItems()
+                    ->whereColumn('purchase_order_items.received_quantity', '<', 'purchase_order_items.quantity')
+                    ->whereHas('purchaseOrder', fn ($query) => $query->whereNotIn('status', ['received', 'cancelled']))
+                    ->exists()) {
+                    throw ValidationException::withMessages([
+                        'is_active' => ['Products with outstanding purchase orders cannot be archived until those orders are completed or cancelled.'],
+                    ]);
+                }
+
+                if ($product->stockReservations()->where('status', 'reserved')->exists()) {
+                    throw ValidationException::withMessages([
+                        'is_active' => ['Products with active sales-order reservations cannot be archived until those orders are fulfilled or cancelled.'],
+                    ]);
+                }
+            }
+
+            return parent::update($request, $id, $service);
+        });
+    }
+
+    public function destroy(int $id, ApiResourceService $service): JsonResponse
+    {
+        $product = Product::query()->findOrFail($id);
+        if ($product->orderItems()->exists()) {
             throw ValidationException::withMessages([
-                'is_active' => ['Products with outstanding purchase orders cannot be archived until those orders are completed or cancelled.'],
+                'product' => ['Products referenced by sales-order history cannot be deleted. Archive the product instead.'],
             ]);
         }
 
-        return parent::update($request, $id, $service);
+        return parent::destroy($id, $service);
     }
 
     protected function rules(?Model $model = null): array

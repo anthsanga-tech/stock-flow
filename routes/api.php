@@ -3,15 +3,14 @@
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CustomerController;
-use App\Http\Controllers\Api\InventoryMovementController;
 use App\Http\Controllers\Api\InventoryController;
+use App\Http\Controllers\Api\InventoryMovementController;
 use App\Http\Controllers\Api\OrderController;
-use App\Http\Controllers\Api\OrderItemController;
 use App\Http\Controllers\Api\OrderStatusHistoryController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\PurchaseReceiptController;
 use App\Http\Controllers\Api\PurchaseOrderController;
+use App\Http\Controllers\Api\PurchaseReceiptController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\RolePermissionController;
 use App\Http\Controllers\Api\StockBalanceController;
@@ -52,7 +51,17 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class])->group(function (
         Route::patch('suppliers/{supplier}', [SupplierController::class, 'update'])->name('suppliers.patch');
         Route::delete('suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.deactivate');
     });
-    Route::apiResource('customers', CustomerController::class);
+    Route::middleware('permission:customers.view')->group(function () {
+        Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+        Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+        Route::get('customers/{customer}/orders', [CustomerController::class, 'orders'])->name('customers.orders');
+    });
+    Route::middleware('permission:customers.manage')->group(function () {
+        Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
+        Route::put('customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
+        Route::patch('customers/{customer}', [CustomerController::class, 'update'])->name('customers.patch');
+        Route::delete('customers/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');
+    });
     Route::post('inventory-movements', [InventoryMovementController::class, 'store'])
         ->middleware('permission:products.manage')
         ->name('inventory-movements.store');
@@ -70,10 +79,23 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class])->group(function (
         Route::post('purchase-orders/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel'])->name('purchase-orders.cancel');
         Route::post('purchase-orders/{purchaseOrder}/receipts', [PurchaseReceiptController::class, 'store'])->name('purchase-orders.receipts.store');
     });
-    Route::apiResource('orders', OrderController::class);
-    Route::apiResource('order-items', OrderItemController::class);
-    Route::apiResource('order-status-history', OrderStatusHistoryController::class)
-        ->only(['index', 'store', 'show']);
+    Route::middleware('permission:orders.view')->group(function () {
+        Route::get('orders/products', [OrderController::class, 'products'])->name('orders.products');
+        Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+    });
+    Route::middleware('permission:orders.manage')->group(function () {
+        Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
+        Route::put('orders/{order}', [OrderController::class, 'update'])->name('orders.update');
+        Route::patch('orders/{order}', [OrderController::class, 'update'])->name('orders.patch');
+        Route::post('orders/{order}/confirm', [OrderController::class, 'confirm'])->name('orders.confirm');
+        Route::post('orders/{order}/process', [OrderController::class, 'process'])->name('orders.process');
+        Route::post('orders/{order}/complete', [OrderController::class, 'complete'])->name('orders.complete');
+        Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+    });
+    Route::middleware('permission:orders.view')->group(function () {
+        Route::apiResource('order-status-history', OrderStatusHistoryController::class)->only(['index', 'show']);
+    });
     Route::apiResource('audit-logs', AuditLogController::class)
         ->only(['index', 'store', 'show']);
 });

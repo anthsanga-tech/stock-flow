@@ -25,11 +25,13 @@ class RolePermissionSeeder extends Seeder
             'suppliers.view',
             'suppliers.manage',
             'customers.view',
+            'customers.manage',
         ])->pluck('id')->all();
         $staffPermissions = Permission::query()->whereIn('slug', [
             'products.view',
             'inventory.view',
             'orders.view',
+            'customers.view',
         ])->pluck('id')->all();
 
         foreach ([

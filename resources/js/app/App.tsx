@@ -15,6 +15,12 @@ import { PurchaseOrderDetailsPage } from '../features/purchasing/PurchaseOrderDe
 import { ReceiveGoodsPage } from '../features/purchasing/ReceiveGoodsPage';
 import { GoodsReceiptHistoryPage } from '../features/purchasing/GoodsReceiptHistoryPage';
 import { GoodsReceiptDetailsPage } from '../features/purchasing/GoodsReceiptDetailsPage';
+import { CustomerListPage } from '../features/sales/CustomerListPage';
+import { CustomerFormPage } from '../features/sales/CustomerFormPage';
+import { CustomerDetailsPage } from '../features/sales/CustomerDetailsPage';
+import { SalesOrderListPage } from '../features/sales/SalesOrderListPage';
+import { SalesOrderFormPage } from '../features/sales/SalesOrderFormPage';
+import { SalesOrderDetailsPage } from '../features/sales/SalesOrderDetailsPage';
 import { AppShell } from '../layout/AppShell';
 import { PermissionRoute, ProtectedRoute } from './ProtectedRoute';
 import { ErrorState } from '../components/ui';
@@ -177,6 +183,70 @@ export function App() {
                 element={
                     <ProtectedShell permission="suppliers.view">
                         <GoodsReceiptDetailsPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/customers"
+                element={
+                    <ProtectedShell permission="customers.view">
+                        <CustomerListPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/customers/new"
+                element={
+                    <ProtectedShell permission="customers.manage">
+                        <CustomerFormPage mode="create" />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/customers/:id/edit"
+                element={
+                    <ProtectedShell permission="customers.manage">
+                        <CustomerFormPage mode="edit" />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/customers/:id"
+                element={
+                    <ProtectedShell permission="customers.view">
+                        <CustomerDetailsPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/orders"
+                element={
+                    <ProtectedShell permission="orders.view">
+                        <SalesOrderListPage />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/orders/new"
+                element={
+                    <ProtectedShell permission="orders.manage">
+                        <SalesOrderFormPage mode="create" />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/orders/:id/edit"
+                element={
+                    <ProtectedShell permission="orders.manage">
+                        <SalesOrderFormPage mode="edit" />
+                    </ProtectedShell>
+                }
+            />
+            <Route
+                path="/orders/:id"
+                element={
+                    <ProtectedShell permission="orders.view">
+                        <SalesOrderDetailsPage />
                     </ProtectedShell>
                 }
             />

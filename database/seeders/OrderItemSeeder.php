@@ -11,7 +11,7 @@ class OrderItemSeeder extends Seeder
 {
     public function run(): void
     {
-        $order = Order::query()->first();
+        $order = Order::query()->where('order_number', 'SO-1001')->first();
         $products = Product::query()->limit(2)->get();
 
         if (! $order || $products->isEmpty()) {
@@ -19,15 +19,29 @@ class OrderItemSeeder extends Seeder
         }
 
         foreach ($products as $index => $product) {
-            OrderItem::query()->create([
+            $quantity = 2 + $index;
+            OrderItem::query()->updateOrCreate([
                 'order_id' => $order->id,
                 'product_id' => $product->id,
+            ], [
                 'sku_snapshot' => $product->sku,
                 'name_snapshot' => $product->name,
-                'quantity' => 2 + $index,
+                'quantity' => $quantity,
                 'unit_price' => $product->selling_price,
-                'line_total' => $product->selling_price * (2 + $index),
+                'discount_amount' => 0,
+                'line_total' => $product->selling_price * $quantity,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
+
+        $subtotal = (float) $order->items()->sum('line_total');
+        $order->update([
+            'subtotal' => $subtotal,
+            'discount' => 0,
+            'tax' => 0,
+            'total' => $subtotal,
+            'updated_at' => now(),
+        ]);
     }
 }

@@ -163,30 +163,24 @@ class ApiResourceTest extends TestCase
             'name' => 'Customer One',
         ])->assertCreated()->json('id');
         $order = $this->postJson('/api/orders', [
-            'order_number' => 'ORD-001',
             'customer_id' => $customer,
-            'status' => 'pending',
-            'subtotal' => 8,
-            'discount' => 0,
-            'tax' => 0,
-            'total' => 8,
-        ])->assertCreated()->json('id');
-        $this->postJson('/api/order-items', [
+            'order_date' => now()->toDateString(),
+            'items' => [[
+                'product_id' => $product,
+                'quantity' => 2,
+                'unit_price' => 4,
+            ]],
+        ])->assertCreated()->assertJsonPath('status', 'draft')
+            ->assertJsonPath('subtotal', '8.00')
+            ->json('id');
+        $this->postJson("/api/orders/{$order}/confirm")->assertOk()
+            ->assertJsonPath('status', 'confirmed');
+        $this->assertDatabaseHas('order_status_history', [
             'order_id' => $order,
-            'product_id' => $product,
-            'sku_snapshot' => 'COMP-001',
-            'name_snapshot' => 'Component',
-            'quantity' => 2,
-            'unit_price' => 4,
-            'line_total' => 8,
-        ])->assertCreated();
-        $this->postJson('/api/order-status-history', [
-            'order_id' => $order,
-            'from_status' => 'new',
-            'to_status' => 'pending',
-        ])->assertCreated()
-            ->assertJsonPath('changed_by', $actor->id)
-            ->assertJsonPath('changer.id', $actor->id);
+            'from_status' => 'draft',
+            'to_status' => 'confirmed',
+            'changed_by' => $actor->id,
+        ]);
         $this->postJson('/api/audit-logs', [
             'action' => 'created',
             'entity_type' => 'order',
@@ -211,6 +205,14 @@ class ApiResourceTest extends TestCase
             'name' => 'View Suppliers',
             'slug' => 'suppliers.view',
         ]);
+        $permissions[] = Permission::factory()->create([
+            'name' => 'View Customers',
+            'slug' => 'customers.view',
+        ]);
+        $permissions[] = Permission::factory()->create([
+            'name' => 'View Orders',
+            'slug' => 'orders.view',
+        ]);
 
         if ($canManage) {
             $permissions[] = Permission::factory()->create([
@@ -220,6 +222,14 @@ class ApiResourceTest extends TestCase
             $permissions[] = Permission::factory()->create([
                 'name' => 'Manage Suppliers',
                 'slug' => 'suppliers.manage',
+            ]);
+            $permissions[] = Permission::factory()->create([
+                'name' => 'Manage Customers',
+                'slug' => 'customers.manage',
+            ]);
+            $permissions[] = Permission::factory()->create([
+                'name' => 'Manage Orders',
+                'slug' => 'orders.manage',
             ]);
         }
 

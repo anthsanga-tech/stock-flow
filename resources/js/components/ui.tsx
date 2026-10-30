@@ -176,20 +176,24 @@ export function Pagination({
     page,
     lastPage,
     total,
+    itemLabel = 'product',
     onPageChange,
 }: {
     page: number;
     lastPage: number;
     total: number;
+    itemLabel?: string;
     onPageChange: (page: number) => void;
 }) {
+    const totalLabel = `${total} ${total === 1 ? itemLabel : `${itemLabel}s`}`;
+
     if (lastPage <= 1) {
-        return <div className="pagination__summary">{total} {total === 1 ? 'product' : 'products'}</div>;
+        return <div className="pagination__summary">{totalLabel}</div>;
     }
 
     return (
         <nav className="pagination" aria-label="Product pages">
-            <span className="pagination__summary">{total} {total === 1 ? 'product' : 'products'} · Page {page} of {lastPage}</span>
+            <span className="pagination__summary">{totalLabel} · Page {page} of {lastPage}</span>
             <div className="pagination__controls">
                 <Button
                     size="small"

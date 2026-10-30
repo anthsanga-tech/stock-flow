@@ -19,8 +19,8 @@ class OrderStatusHistoryFactory extends Factory
         return [
             'order_id' => Order::query()->inRandomOrder()->value('id')
                 ?? Order::factory()->create()->id,
-            'from_status' => fake()->randomElement(['new', 'pending', 'processing']),
-            'to_status' => fake()->randomElement(['pending', 'processing', 'completed', 'cancelled']),
+            'from_status' => fake()->randomElement([null, 'draft', 'confirmed', 'processing']),
+            'to_status' => fake()->randomElement(['draft', 'confirmed', 'processing', 'completed', 'cancelled']),
             'changed_by' => User::query()->inRandomOrder()->value('id')
                 ?? User::factory()->create()->id,
             'note' => fake()->sentence(),
